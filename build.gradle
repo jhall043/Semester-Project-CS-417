@@ -34,21 +34,21 @@ dependencies {
 }
 
 jar {
-    archiveBaseName = "ParseTemps"
+    archiveBaseName = "MainDriver"
 
     manifest {
         attributes(
-            "Main-Class": "ParseTempsDriver"
+            "Main-Class": "MainDriver"
         )
     }
 }
 
 run {
-    mainClass = "ParseTempsDriver"
+    mainClass = "MainDriver"
 }
 
 application {
-    mainClass = "ParseTempsDriver"
+    mainClass = "MainDriver"
 }
 // Apply common settings for both test (unit test) and integration test tasks
 tasks.withType(Test) {

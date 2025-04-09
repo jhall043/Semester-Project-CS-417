@@ -1,4 +1,5 @@
 import java.util.List;
+import java.util.ArrayList;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -7,27 +8,10 @@ import java.util.Scanner;
 
 import static edu.odu.cs.cs417.TemperatureParser.CoreTempReading;
 import static edu.odu.cs.cs417.TemperatureParser.parseRawTemps;
-import static edu.odu.cs.cs417.PiecewiseLinearInterpolation.interpolate;  // Import interpolation
+import edu.odu.cs.cs417.PiecewiseLinearInterpolation;
+import edu.odu.cs.cs417.LinearLeastSquaresApprox;
 
-/**
- * The MainDriver class is responsible for reading temperature data from a file,
- * parsing it, and performing interpolation on the temperature readings.
- */
 public class MainDriver {
-
-    /**
-     * The main function that drives the temperature parsing and interpolation.
-     *
-     * <ul>
-     *   <li> Reads a temperature file provided as a command-line argument. </li>
-     *   <li> Parses the raw temperature readings at fixed time intervals. </li>
-     *   <li> Prints the parsed temperature data. </li>
-     *   <li> Prompts the user to enter a time step for interpolation. </li>
-     *   <li> Computes and prints interpolated temperature values for each CPU core. </li>
-     * </ul>
-     *
-     * @param args Command-line arguments. The first argument should be the filename.
-     */
     public static void main(String[] args) {
         BufferedReader tFileStream = null;
 
@@ -53,15 +37,44 @@ public class MainDriver {
 
         // Ask user for time input
         Scanner scanner = new Scanner(System.in);
-        System.out.print("\nEnter a time step to interpolate: ");
-        int queryTime = scanner.nextInt();
+        System.out.print("\nEnter a time step to interpolate and approximate: ");
+        double queryTime = scanner.nextDouble();
 
-        // Interpolate for each core
-        System.out.println("\nInterpolated Temperatures:");
+        // Process each core
         int numCores = allTheTemps.get(0).readings.length;
         for (int coreIdx = 0; coreIdx < numCores; coreIdx++) {
-            double interpolatedTemp = interpolate(allTheTemps, queryTime, coreIdx);
-            System.out.printf("Core %d -> %.2f°C%n", coreIdx, interpolatedTemp);
+            // Extract data points for this core
+            List<PiecewiseLinearInterpolation.Point> coreData = new ArrayList<>();
+            double[] times = new double[allTheTemps.size()];
+            double[] temps = new double[allTheTemps.size()];
+            for (int i = 0; i < allTheTemps.size(); i++) {
+                CoreTempReading reading = allTheTemps.get(i);
+                double time = (double) reading.step;
+                double temp = reading.readings[coreIdx];
+                coreData.add(new PiecewiseLinearInterpolation.Point(time, temp));
+                times[i] = time;
+                temps[i] = temp;
+            }
+
+            // Piecewise Linear Interpolation
+            System.out.printf("\nCore %d:%n", coreIdx);
+            try {
+                double interpolatedTemp = PiecewiseLinearInterpolation.interpolate(coreData, queryTime);
+                System.out.printf("  Interpolated Temp: %.2f°C%n", interpolatedTemp);
+            } catch (IllegalArgumentException e) {
+                System.out.printf("  Interpolated Temp: Error: %s%n", e.getMessage());
+            }
+
+            // Linear Least Squares Approximation
+            LinearLeastSquaresApprox approx = new LinearLeastSquaresApprox();
+            try {
+                approx.fit(times, temps);
+                double approxTemp = approx.evaluate(queryTime);
+                System.out.printf("  Least Squares Fit: y = %.2fx + %.2f%n", approx.getSlope(), approx.getIntercept());
+                System.out.printf("  Approximated Temp: %.2f°C%n", approxTemp);
+            } catch (Exception e) {
+                System.out.printf("  Least Squares Fit: Error: %s%n", e.getMessage());
+            }
         }
 
         scanner.close();
