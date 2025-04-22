@@ -13,9 +13,9 @@ gradle --version
 To compile the project, use the provided Gradle wrapper or the `gradle build` command.
 
 # Run
-To run the application, use the following command:
-gradle run --args="FILE_PATH.txt" <-- Note that for testing the following was used: gradle run --args="TestData.txt"
-This will start the application.
+Make sure to build the program first.
+To run the application, use the following command: java -cp build/classes/java/main MainDriver TestData.txt
+Then pass in a time step value when prompted, example: 45
 
 ## Project Overview
 This project processes CPU core temperature data from a file, providing:

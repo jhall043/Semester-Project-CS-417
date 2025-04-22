@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 import java.util.Scanner;
 
 import static edu.odu.cs.cs417.TemperatureParser.CoreTempReading;
@@ -56,25 +57,47 @@ public class MainDriver {
                 temps[i] = temp;
             }
 
-            // Piecewise Linear Interpolation
-            System.out.printf("\nCore %d:%n", coreIdx);
+            // Create output file for this core
+            String inputFilename = args[0];
+            String baseName = new File(inputFilename).getName();
+            String outputFilename = String.format("%s-core-%02d.txt", baseName.replace(".txt", ""), coreIdx);
+            File outFile = new File(outputFilename);
+            PrintWriter writer;
             try {
-                double interpolatedTemp = PiecewiseLinearInterpolation.interpolate(coreData, queryTime);
-                System.out.printf("  Interpolated Temp: %.2f°C%n", interpolatedTemp);
-            } catch (IllegalArgumentException e) {
-                System.out.printf("  Interpolated Temp: Error: %s%n", e.getMessage());
+                writer = new PrintWriter(outFile);
+            } catch (FileNotFoundException e) {
+                System.err.println("Error: Cannot write to output file: " + outputFilename);
+                continue;
             }
 
-            // Linear Least Squares Approximation
+            // Piecewise Linear Interpolation: write segments to file
+            for (int i = 0; i < coreData.size() - 1; i++) {
+                var p1 = coreData.get(i);
+                var p2 = coreData.get(i + 1);
+
+                double slope = (p2.y - p1.y) / (p2.x - p1.x);
+                double intercept = p1.y - slope * p1.x;
+
+                writer.printf("%10.0f <= x <= %10.0f ; y = %10.4f + %10.4f x ; interpolation%n",
+                        p1.x, p2.x, intercept, slope);
+            }
+
+            // Linear Least Squares Approximation: add final line
             LinearLeastSquaresApprox approx = new LinearLeastSquaresApprox();
             try {
                 approx.fit(times, temps);
-                double approxTemp = approx.evaluate(queryTime);
-                System.out.printf("  Least Squares Fit: y = %.2fx + %.2f%n", approx.getSlope(), approx.getIntercept());
-                System.out.printf("  Approximated Temp: %.2f°C%n", approxTemp);
+                double lsSlope = approx.getSlope();
+                double lsIntercept = approx.getIntercept();
+                double minX = times[0];
+                double maxX = times[times.length - 1];
+
+                writer.printf("%10.0f <= x <= %10.0f ; y = %10.4f + %10.4f x ; least-squares%n",
+                        minX, maxX, lsIntercept, lsSlope);
             } catch (Exception e) {
-                System.out.printf("  Least Squares Fit: Error: %s%n", e.getMessage());
+                writer.printf("Least Squares Fit: Error: %s%n", e.getMessage());
             }
+
+            writer.close();
         }
 
         scanner.close();
